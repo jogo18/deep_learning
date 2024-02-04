@@ -4,19 +4,24 @@
 # e.g. pip install pytorch_lightning or !pip install pytorch_lightning
 
 import torch.nn.functional as F
-import numpy as np # linear algebra
-import pandas as pd # data processing, CSV file I/O (e.g. pd.read_csv)
-import os, sys # filesystem operations
+import numpy as np 
+import pandas as pd 
+import os, sys 
 import matplotlib.pyplot as plt
 import cv2
 import random
 import torch
-from torch import nn
-import torchvision.transforms as transforms
+import wandb
 import pytorch_lightning as pl
+import torchvision.transforms as transforms
+from pytorch_lightning import Trainer
+from torch.utils.data import DataLoader
+from torch import nn
+from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
 from PIL import Image
 from argparse import Namespace
-import wandb
+from pytorch_lightning.loggers import WandbLogger
+from argparse import Namespace
 
 class LightningClassifier(pl.LightningModule):
 
@@ -164,12 +169,11 @@ class AgeClassificationDataset(torch.utils.data.Dataset):
     def __len__(self):
         return len(self.labels)
 def main():        
-    from argparse import Namespace
     # When using Kaggle datasets upload of data is handled behind the scene
     # Data files are available in the read-only "../input/" directory
     # If you are using something else, you need to upload the data manually
     # Here we take a look at the content of the input directory
-    input_dir = r'C:\Users\Jakob\Desktop\AAU\8.Semester\deep_learning\Lecture_1\faces'
+    input_dir = '/home/jagrole/AAU/8.Semester/deep_learning/Data/Lec1/faces' 
     print(f"input dir contains: {os.listdir(input_dir)}")
     # dataset_dir = os.path.join(input_dir,'faces-age-detection-dataset')
     print(f"dataset dir contains: {os.listdir(input_dir)}")
@@ -241,11 +245,9 @@ def main():
         os.makedirs(output_dir)
 
     os.environ["WANDB_API_KEY"] = hparams.wandb_api_key
-    import wandb
     wandb.init(config=vars(hparams))
     hparams = Namespace(**wandb.config)
 
-    from pytorch_lightning.loggers import WandbLogger
     logger = WandbLogger(save_dir='wandb_logs/', offline=False, project=hparams.wandb_project, log_model=False)
 
     # The network needs the input to be a specific size and to pytorch tensors 
@@ -260,15 +262,14 @@ def main():
     train_set, val_set = torch.utils.data.random_split(train_val_set, lengths)
     print(f"train_val_set of len {len(train_val_set)} split into train_set {len(train_set)} and val_set {len(val_set)}")
 
-    from torch.utils.data import DataLoader
     train_dataloader = DataLoader(train_set, batch_size=hparams.batch_size, shuffle=True, pin_memory=True, num_workers=hparams.n_workers, persistent_workers=True)
     val_dataloader = DataLoader(val_set, batch_size=hparams.batch_size, shuffle=False, pin_memory=True, num_workers=hparams.n_workers, persistent_workers=True)
+
 
     # initialize model, training and validation code
     lightning_module = LightningClassifier(hparams)
 
     # initialize training
-    from pytorch_lightning import Trainer
     trainer = pl.Trainer(accelerator='gpu', 
                         max_epochs=hparams.max_epochs,
                         logger=logger,
@@ -289,9 +290,6 @@ def main():
         if i > 500:
             break
 
-
-
-    from sklearn.metrics import confusion_matrix, ConfusionMatrixDisplay
     cm = confusion_matrix(labels, predictions, labels=[1,2,3])
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=[1,2,3])
     disp.plot()

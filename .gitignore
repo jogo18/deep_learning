@@ -1,0 +1,7 @@
+venv/
+wandb/
+trained_models/
+logs/
+.ipynb_checkpoints
+*.Identifier
+*.ipynb
